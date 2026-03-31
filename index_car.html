@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>NEON RACER - UNIVERSE'S BEST</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Orbitron', sans-serif;
+      background: #000;
+      user-select: none;
+      touch-action: none;
+    }
+
+    #gameContainer {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #hud {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      padding: 20px;
+    }
+
+    .hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .stat-box {
+      background: rgba(0, 0, 0, 0.7);
+      border-left: 4px solid #0ff;
+      padding: 10px 20px;
+      backdrop-filter: blur(5px);
+      min-width: 140px;
+    }
+
+    .stat-label {
+      color: #0ff;
+      font-size: 10px;
+      letter-spacing: 2px;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      color: #fff;
+      font-size: 24px;
+      font-weight: 900;
+      text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    }
+
+    #lives-val {
+      font-size: 18px;
+      margin-top: 5px;
+      letter-spacing: 2px;
+    }
+
+    .penalty-flash {
+      color: #f05 !important;
+      animation: flash 0.5s infinite;
+    }
+
+    @keyframes flash {
+      50% { opacity: 0.5; }
+    }
+
+    .mobile-controls {
+      position: absolute;
+      bottom: 40px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-around;
+      padding: 0 20px;
+      pointer-events: auto;
+    }
+
+    .ctrl-btn {
+      width: 80px;
+      height: 80px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid #0ff;
+      border-radius: 50%;
+      color: #0ff;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(5px);
+    }
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      text-align: center;
+    }
+
+    .title-card h1 {
+      color: #0ff;
+      font-size: clamp(32px, 8vw, 64px);
+      margin: 0;
+      text-shadow: 0 0 20px #0ff;
+    }
+
+    .victory-title {
+      background: linear-gradient(to bottom, #fff 20%, #ffdf00 50%, #d4af37 80%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-size: clamp(24px, 6vw, 48px) !important;
+      text-shadow: 0 10px 20px rgba(212, 175, 55, 0.5) !important;
+      line-height: 1.2;
+    }
+
+    .menu-btn {
+      background: transparent;
+      border: 2px solid #0ff;
+      color: #0ff;
+      padding: 15px 60px;
+      font-family: 'Orbitron';
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 20px;
+    }
+
+    .menu-btn:hover {
+      background: #0ff;
+      color: #000;
+      box-shadow: 0 0 30px #0ff;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div id="gameContainer">
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="hud">
+    <div class="hud-header">
+      <div class="stat-box">
+        <div class="stat-label">TIME ATTACK</div>
+        <div id="time-val" class="stat-value">00:00.00</div>
+        <div class="stat-label" style="margin-top:10px;">CORE / LIVES</div>
+        <div id="score-val" class="stat-value">0 / 20</div>
+        <div id="lives-val">❤️❤️❤️❤️❤️</div>
+      </div>
+      <div class="stat-box" style="text-align: right; border-left: none; border-right: 4px solid #f0f;">
+        <div class="stat-label" style="color: #f0f;">VELOCITY</div>
+        <div id="speed-val" class="stat-value">0 km/h</div>
+        <div id="speed-sub" class="stat-label" style="color: #f0f; height: 12px;">LIMIT 120 KM/H</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <div class="title-card">
+      <h1 id="msg-main">NEON RACER</h1>
+      <p id="msg-sub" style="color:#888;">COLLECT 20 CORES AS FAST AS POSSIBLE</p>
+      <p id="msg-record" style="color:#0ff; font-size:12px; margin-top:10px;"></p>
+    </div>
+    <button id="action-btn" class="menu-btn">START ENGINE</button>
+  </div>
+
+  <div class="mobile-controls">
+    <div id="btn-left" class="ctrl-btn">◀</div>
+    <div id="btn-right" class="ctrl-btn">▶</div>
+  </div>
+</div>
+
+<script>
+const CONFIG = {
+  LANE_COUNT: 4,
+  ROAD_WIDTH: 320,
+  TARGET_SCORE: 20,
+  MAX_LIVES: 5,
+  MIN_SPEED_KM: 40,
+  MAX_SPEED_KM: 120,
+  ACCELERATION: 0.05,
+  PENALTY_KM: 20,
+  PLAYER_Y_OFFSET: 150,
+  SPAWN_INTERVAL: 0.035,
+  COLORS: {
+    PLAYER: '#00ffff',
+    ENEMY: '#ff0055',
+    ITEM: '#ffff00',
+    ROAD: '#050510'
+  }
+};
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score-val');
+const livesEl = document.getElementById('lives-val');
+const speedEl = document.getElementById('speed-val');
+const timeEl = document.getElementById('time-val');
+const overlay = document.getElementById('overlay');
+const mainMsg = document.getElementById('msg-main');
+const subMsg = document.getElementById('msg-sub');
+const recordMsg = document.getElementById('msg-record');
+const actionBtn = document.getElementById('action-btn');
+
+let state = {
+  running: false,
+  score: 0,
+  lives: CONFIG.MAX_LIVES,
+  lane: 1,
+  currentSpeedKm: CONFIG.MIN_SPEED_KM,
+  startTime: 0,
+  currentTime: 0,
+  obstacles: [],
+  items: [],
+  particles: [],
+  stars: [],
+  shake: 0,
+  lastFrameTime: 0,
+  bestTime: localStorage.getItem('neon_racer_best_v2') || null
+};
+
+function init() {
+  resize();
+  window.addEventListener('resize', resize);
+  
+  for(let i=0; i<150; i++) {
+    state.stars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      size: Math.random() * 1.5,
+      speed: Math.random() * 0.2 + 0.05
+    });
+  }
+
+  if(state.bestTime) {
+    recordMsg.textContent = `BEST TIME: ${formatTime(parseFloat(state.bestTime))}`;
+  }
+
+  window.addEventListener('keydown', e => {
+    if(!state.running) return;
+    if(e.key === 'ArrowLeft') move(-1);
+    if(e.key === 'ArrowRight') move(1);
+  });
+
+  const prevent = e => e.preventDefault();
+  document.getElementById('btn-left').onpointerdown = (e) => { prevent(e); move(-1); };
+  document.getElementById('btn-right').onpointerdown = (e) => { prevent(e); move(1); };
+  actionBtn.onclick = startGame;
+
+  requestAnimationFrame(tick);
+}
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+
+function move(dir) {
+  state.lane = Math.max(0, Math.min(CONFIG.LANE_COUNT - 1, state.lane + dir));
+}
+
+function formatTime(ms) {
+  const totalSeconds = ms / 1000;
+  const m = Math.floor(totalSeconds / 60);
+  const s = Math.floor(totalSeconds % 60);
+  const cs = Math.floor((ms % 1000) / 10);
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(cs).padStart(2, '0')}`;
+}
+
+function updateLivesUI() {
+  livesEl.textContent = '❤️'.repeat(state.lives) + '🖤'.repeat(CONFIG.MAX_LIVES - state.lives);
+}
+
+function createExplosion(x, y, color) {
+  for(let i=0; i<20; i++) {
+    state.particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 12,
+      vy: (Math.random() - 0.5) * 12,
+      life: 1.0,
+      color: color
+    });
+  }
+}
+
+function getLaneX(lane) {
+  const startX = (canvas.width - CONFIG.ROAD_WIDTH) / 2;
+  const laneW = CONFIG.ROAD_WIDTH / CONFIG.LANE_COUNT;
+  return startX + (lane * laneW) + (laneW / 2);
+}
+
+function tick(timestamp) {
+  const dt = timestamp - state.lastFrameTime;
+  state.lastFrameTime = timestamp;
+  update(dt);
+  draw();
+  requestAnimationFrame(tick);
+}
+
+function update(dt) {
+  state.stars.forEach(s => {
+    s.y += s.speed * (state.running ? state.currentSpeedKm * 0.1 : 2);
+    if(s.y > canvas.height) s.y = 0;
+  });
+
+  if (!state.running) return;
+
+  if (state.currentSpeedKm < CONFIG.MAX_SPEED_KM) {
+    state.currentSpeedKm += CONFIG.ACCELERATION;
+  }
+  
+  const displaySpeed = Math.floor(state.currentSpeedKm);
+  speedEl.textContent = `${displaySpeed} km/h`;
+  
+  state.currentTime = performance.now() - state.startTime;
+  timeEl.textContent = formatTime(state.currentTime);
+
+  const moveSpeed = state.currentSpeedKm * 0.15;
+
+  // 障害物生成
+  if (Math.random() < CONFIG.SPAWN_INTERVAL) {
+    const lane = Math.floor(Math.random() * CONFIG.LANE_COUNT);
+    const newY = -100;
+    
+    const obstacleInSameRow = state.obstacles.filter(o => Math.abs(o.y - newY) < 160);
+    const occupiedLanes = obstacleInSameRow.map(o => o.lane);
+    
+    // 全レーン封鎖防止
+    const canSpawn = !occupiedLanes.includes(lane) && occupiedLanes.length < (CONFIG.LANE_COUNT - 1);
+    const isTooCloseInLane = state.obstacles.some(o => o.lane === lane && Math.abs(o.y - newY) < 380);
+    
+    if (canSpawn && !isTooCloseInLane) {
+      state.obstacles.push({ lane, y: newY });
+    }
+  }
+
+  // アイテム生成
+  if (Math.random() < 0.02) {
+    const lane = Math.floor(Math.random() * CONFIG.LANE_COUNT);
+    const newY = -100;
+    const isOverlapping = [...state.obstacles, ...state.items].some(o => o.lane === lane && Math.abs(o.y - newY) < 150);
+    if (!isOverlapping) {
+      state.items.push({ lane, y: newY });
+    }
+  }
+
+  const playerX = getLaneX(state.lane);
+  const playerY = canvas.height - CONFIG.PLAYER_Y_OFFSET;
+
+  // 障害物更新
+  for (let i = state.obstacles.length - 1; i >= 0; i--) {
+    const o = state.obstacles[i];
+    o.y += moveSpeed;
+    
+    const dx = Math.abs(getLaneX(o.lane) - playerX);
+    const dy = Math.abs(o.y - playerY);
+    
+    if (dx < 35 && dy < 60) {
+      state.lives--;
+      state.currentSpeedKm = Math.max(CONFIG.MIN_SPEED_KM, state.currentSpeedKm - CONFIG.PENALTY_KM);
+      state.shake = 18;
+      createExplosion(playerX, playerY, CONFIG.COLORS.ENEMY);
+      state.obstacles.splice(i, 1);
+      updateLivesUI();
+      
+      speedEl.classList.add('penalty-flash');
+      setTimeout(() => speedEl.classList.remove('penalty-flash'), 500);
+
+      if(state.lives <= 0) gameOver();
+      continue;
+    }
+    if (o.y > canvas.height + 100) state.obstacles.splice(i, 1);
+  }
+
+  // アイテム更新
+  for (let i = state.items.length - 1; i >= 0; i--) {
+    const item = state.items[i];
+    item.y += moveSpeed;
+    if (Math.abs(item.y - playerY) < 55 && Math.abs(getLaneX(item.lane) - playerX) < 40) {
+      state.score++;
+      createExplosion(playerX, playerY, CONFIG.COLORS.ITEM);
+      scoreEl.textContent = `${state.score} / ${CONFIG.TARGET_SCORE}`;
+      state.items.splice(i, 1);
+      if(state.score >= CONFIG.TARGET_SCORE) win();
+      continue;
+    }
+    if (item.y > canvas.height + 100) state.items.splice(i, 1);
+  }
+
+  state.particles.forEach((p, i) => {
+    p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+    if(p.life <= 0) state.particles.splice(i, 1);
+  });
+
+  if(state.shake > 0) state.shake *= 0.85;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  if(state.shake > 0) {
+    ctx.translate((Math.random()-0.5)*state.shake, (Math.random()-0.5)*state.shake);
+  }
+
+  // 星
+  ctx.fillStyle = '#fff';
+  state.stars.forEach(s => {
+    ctx.globalAlpha = 0.4;
+    ctx.fillRect(s.x, s.y, s.size, s.size);
+  });
+  ctx.globalAlpha = 1.0;
+
+  // 道路
+  const startX = (canvas.width - CONFIG.ROAD_WIDTH) / 2;
+  ctx.fillStyle = CONFIG.COLORS.ROAD;
+  ctx.fillRect(startX, 0, CONFIG.ROAD_WIDTH, canvas.height);
+
+  // 境界線
+  const moveOffset = (state.running ? state.currentTime * (state.currentSpeedKm * 0.01) : 0);
+  ctx.setLineDash([40, 60]);
+  ctx.lineDashOffset = -moveOffset;
+  ctx.strokeStyle = 'rgba(0, 255, 255, 0.15)';
+  ctx.lineWidth = 2;
+  for(let i=1; i<CONFIG.LANE_COUNT; i++) {
+    const lx = startX + (i * (CONFIG.ROAD_WIDTH / CONFIG.LANE_COUNT));
+    ctx.beginPath();
+    ctx.moveTo(lx, 0); ctx.lineTo(lx, canvas.height);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  state.items.forEach(item => {
+    const x = getLaneX(item.lane);
+    ctx.shadowBlur = 15; ctx.shadowColor = '#ff0';
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath(); ctx.arc(x, item.y, 11, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+
+  state.obstacles.forEach(o => drawCar(getLaneX(o.lane), o.y, CONFIG.COLORS.ENEMY));
+  drawCar(getLaneX(state.lane), canvas.height - CONFIG.PLAYER_Y_OFFSET, CONFIG.COLORS.PLAYER, true);
+
+  state.particles.forEach(p => {
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, 4, 4);
+  });
+
+  ctx.restore();
+}
+
+function drawCar(x, y, color, isPlayer = false) {
+  ctx.save();
+  ctx.translate(x, y);
+  const w = 42, h = 76;
+  ctx.shadowBlur = 15;
+  ctx.shadowColor = color;
+  ctx.fillStyle = '#050505';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  
+  ctx.beginPath();
+  ctx.moveTo(-w/2, h/2);
+  ctx.lineTo(-w/2 + 5, -h/2 + 10);
+  ctx.lineTo(0, -h/2);
+  ctx.lineTo(w/2 - 5, -h/2 + 10);
+  ctx.lineTo(w/2, h/2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = isPlayer ? 'rgba(0, 255, 255, 0.3)' : 'rgba(255, 0, 85, 0.3)';
+  ctx.fillRect(-w/2 + 10, -12, w - 20, 22);
+
+  ctx.shadowBlur = 5;
+  ctx.fillStyle = isPlayer ? '#fff' : '#f00';
+  ctx.fillRect(-w/2 + 6, -h/2 + 12, 10, 4);
+  ctx.fillRect(w/2 - 16, -h/2 + 12, 10, 4);
+  ctx.restore();
+}
+
+function startGame() {
+  state.running = true;
+  state.score = 0;
+  state.lives = CONFIG.MAX_LIVES;
+  state.lane = 1;
+  state.currentSpeedKm = CONFIG.MIN_SPEED_KM;
+  state.obstacles = [];
+  state.items = [];
+  state.particles = [];
+  state.startTime = performance.now();
+  state.lastFrameTime = performance.now();
+  
+  mainMsg.classList.remove('victory-title');
+  mainMsg.style.color = '#0ff';
+  mainMsg.style.textShadow = '0 0 20px #0ff';
+  
+  scoreEl.textContent = `0 / ${CONFIG.TARGET_SCORE}`;
+  updateLivesUI();
+  overlay.classList.add('hidden');
+}
+
+function gameOver() {
+  state.running = false;
+  mainMsg.textContent = 'SYSTEM CRASH';
+  mainMsg.style.color = '#f05';
+  mainMsg.style.textShadow = '0 0 20px #f05';
+  subMsg.textContent = `ENERGY EXHAUSTED AT ${state.score} CORES`;
+  actionBtn.textContent = 'REBOOT SYSTEM';
+  overlay.classList.remove('hidden');
+}
+
+function win() {
+  state.running = false;
+  const finalTime = state.currentTime;
+  
+  mainMsg.textContent = "YOU ARE THE UNIVERSE'S BEST RACER!";
+  mainMsg.classList.add('victory-title');
+  
+  subMsg.innerHTML = `<span style="color:#fff; font-size:18px;">あなたは宇宙1のレーサーだ！</span><br><br>TIME: ${formatTime(finalTime)}`;
+  
+  if(!state.bestTime || finalTime < parseFloat(state.bestTime)) {
+    state.bestTime = finalTime;
+    localStorage.setItem('neon_racer_best_v2', finalTime);
+    recordMsg.textContent = `NEW COSMIC RECORD! BEST: ${formatTime(finalTime)}`;
+  } else {
+    recordMsg.textContent = `BEST TIME: ${formatTime(parseFloat(state.bestTime))}`;
+  }
+  
+  actionBtn.textContent = 'NEXT MISSION';
+  overlay.classList.remove('hidden');
+}
+
+init();
+</script>
+</body>
+</html>
